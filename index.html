@@ -339,20 +339,7 @@
   .modal input:focus { outline: none; border-color: var(--accent); }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
-  /* ── DANGER ZONE ── */
-  .danger-zone {
-    margin-top: 32px;
-    padding: 16px 20px;
-    background: rgba(255,107,107,.06);
-    border: 1px solid rgba(255,107,107,.2);
-    border-radius: var(--radius);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
-  .danger-zone p { color: var(--muted); font-size: .88rem; }
+
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
@@ -385,6 +372,78 @@
     will-change: transform;
   }
 
+
+  /* ── 3-DOT MENU ── */
+  .menu-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 200;
+    background: var(--surface2);
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 1.4rem;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, color .15s;
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .menu-btn:hover { background: var(--surface); color: var(--text); }
+
+  .menu-dropdown {
+    display: none;
+    position: fixed;
+    top: 66px;
+    right: 16px;
+    z-index: 200;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    padding: 8px;
+    min-width: 210px;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .menu-dropdown.open { display: flex; }
+
+  .menu-item {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: .92rem;
+    padding: 10px 14px;
+    border-radius: 9px;
+    cursor: pointer;
+    text-align: left;
+    transition: background .12s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .menu-item:hover { background: var(--surface2); }
+  .menu-item.danger { color: var(--accent2); }
+  .menu-item label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .menu-divider {
+    height: 1px;
+    background: var(--surface2);
+    margin: 4px 0;
+  }
+
 </style>
 
 <meta name="mobile-web-app-capable" content="yes">
@@ -407,6 +466,19 @@
 </script>
 </head>
 <body>
+
+<!-- 3-dot menu -->
+<button class="menu-btn" onclick="toggleMenu()" title="Menü">⋮</button>
+<div class="menu-dropdown" id="menu-dropdown">
+  <button class="menu-item" onclick="exportJSON();closeMenu()">⬇ <span>Export JSON</span></button>
+  <button class="menu-item" onclick="document.getElementById('import-file').click()">
+    ⬆ <span>Import JSON</span>
+    <input type="file" id="import-file" accept=".json" onchange="importJSON(event)" style="display:none">
+  </button>
+  <div class="menu-divider"></div>
+  <button class="menu-item danger" onclick="clearAll();closeMenu()">✕ <span>Alles zurücksetzen</span></button>
+</div>
+
 
 <header>
   <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;">
@@ -446,19 +518,7 @@
   </div>
 </div>
 
-<div class="danger-zone">
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <button class="btn btn-ghost btn-sm" onclick="exportJSON()">⬇ Export JSON</button>
-    <label class="btn btn-ghost btn-sm" style="cursor:pointer">
-      ⬆ Import JSON
-      <input type="file" accept=".json" onchange="importJSON(event)" style="display:none">
-    </label>
-  </div>
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <p>⚠️ Alle Daten löschen – dies kann nicht rückgängig gemacht werden.</p>
-    <button class="btn btn-danger btn-sm" onclick="clearAll()">Alles zurücksetzen</button>
-  </div>
-</div>
+
 
 <!-- Add Round Modal -->
 <div class="modal-backdrop" id="add-modal">
@@ -833,6 +893,21 @@ function matchAddButtonHeight() {
   });
   cols.forEach(c => _colObserver.observe(c));
 }
+
+
+// ── 3-DOT MENU ────────────────────────────────────────────────
+function toggleMenu() {
+  document.getElementById('menu-dropdown').classList.toggle('open');
+}
+function closeMenu() {
+  document.getElementById('menu-dropdown').classList.remove('open');
+}
+// Close menu when clicking outside
+document.addEventListener('click', e => {
+  const menu = document.getElementById('menu-dropdown');
+  const btn  = document.querySelector('.menu-btn');
+  if (!menu.contains(e.target) && !btn.contains(e.target)) closeMenu();
+});
 
 // ── INIT ──────────────────────────────────────────────────────
 render();
