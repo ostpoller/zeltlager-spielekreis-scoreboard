@@ -28,8 +28,8 @@
     font-family: 'Nunito', sans-serif;
     background: var(--bg);
     color: var(--text);
-    height: 100vh;
-    height: 100dvh;
+    height: 100vh; /* Fallback for older browsers */
+    height: 100dvh; /* Dynamic height for mobile */
     margin: 0;
     padding: 0;
     display: flex;
@@ -116,7 +116,7 @@
     display: grid;
     grid-template-columns: 1.9fr 1.1fr;
     gap: 24px;
-    align-items: start;
+    height: 100%; /* Force grid to fill available vertical space */
   }
 
   /* ── CARD ── */
@@ -124,6 +124,10 @@
     background: var(--surface);
     border-radius: var(--radius);
     padding: 18px;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Stretch cards fully */
+    box-sizing: border-box;
   }
   .card h2 {
     font-family: 'Fredoka One', cursive;
@@ -284,6 +288,8 @@
   .lb-scroll-wrap {
     overflow: hidden;
     position: relative;
+    flex: 1; /* Allow the wrapper to fill remaining vertical space */
+    min-height: 0; /* Important for flexbox shrinking */
   }
   .lb-scroll-wrap::after {
     content: '';
@@ -363,6 +369,18 @@
     height: 1px;
     background: var(--surface2);
     margin: 4px 0;
+  }
+  
+  /* ── SORT HEADER ── */
+  .sort-header {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.15s;
+  }
+  .sort-header:hover {
+    color: var(--text);
   }
 </style>
 
@@ -483,10 +501,10 @@ function renderMainContent() {
 
   if (activeTab === 'overall') {
     container.innerHTML = `
-      <div class="section-title">🏆 Gesamtrangliste</div>
-      <div style="max-width:540px; margin:0 auto">
-        <div class="card">
-          <div id="overall-lb"></div>
+      <div style="height: 100%; max-width: 540px; margin: 0 auto; display: flex; flex-direction: column;">
+        <div class="section-title">🏆 Gesamtrangliste</div>
+        <div class="card" style="flex: 1; min-height: 0;">
+          <div id="overall-lb" style="display: flex; flex-direction: column; flex: 1; min-height: 0;"></div>
         </div>
       </div>`;
     renderOverallLB();
@@ -503,6 +521,7 @@ function renderMainContent() {
 }
 
 function buildRoundPageHtml(round, ri) {
+  // Build input rows
   const rowsHtml = round.entries.map((e, i) => `
     <div class="form-row">
       <input type="text" placeholder="Spielername" value="${esc(e.name)}"
@@ -513,10 +532,29 @@ function buildRoundPageHtml(round, ri) {
     </div>
   `).join('');
 
+  // Determine sort icons
+  const nameSortIcon = round.sortField === 'name' ? (round.sortAsc ? '▲' : '▼') : '↕';
+  const scoreSortIcon = round.sortField === 'score' ? (round.sortAsc ? '▲' : '▼') : '↕';
+
+  // Build the sort header row
+  const headerHtml = `
+    <div class="form-row" style="padding: 0 10px; margin-bottom: 4px; font-weight: 700; font-size: 0.8rem; color: var(--muted); user-select: none;">
+      <div class="sort-header" onclick="sortEntries(${ri}, 'name')" title="Nach Name sortieren">
+        Spielername <span>${nameSortIcon}</span>
+      </div>
+      <div class="sort-header" onclick="sortEntries(${ri}, 'score')" title="Nach Punkten sortieren">
+        Punkte <span>${scoreSortIcon}</span>
+      </div>
+      <div></div>
+    </div>
+  `;
+
   return `
     <div class="round-page-grid">
       <div class="card">
-        <div id="lb-${ri}">${buildLB(round.entries, "r"+ri)}</div>
+        <div id="lb-${ri}" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+          ${buildLB(round.entries, "r"+ri)}
+        </div>
       </div>
 
       <div class="card">
@@ -530,7 +568,10 @@ function buildRoundPageHtml(round, ri) {
         <div class="form-actions" style="margin-top:0; margin-bottom:16px;">
           <button class="btn btn-teal btn-sm" style="width:100%" onclick="addPlayerRow(${ri})">+ Spieler hinzufügen</button>
         </div>
-        <div style="max-height: calc(100vh - 160px); overflow-y: auto; padding-right: 2px;">
+        
+        ${headerHtml}
+
+        <div style="flex: 1; overflow-y: auto; padding-right: 2px; min-height: 0;">
           ${rowsHtml}
         </div>
       </div>
@@ -538,6 +579,41 @@ function buildRoundPageHtml(round, ri) {
 }
 
 // ── ENGINE OPERATIONS ─────────────────────────────────────────
+
+function sortEntries(ri, field) {
+  const round = data.rounds[ri];
+  
+  // Toggle sort direction if clicking the same column
+  if (round.sortField === field) {
+    round.sortAsc = !round.sortAsc;
+  } else {
+    round.sortField = field;
+    // Default to descending for score, ascending for name
+    round.sortAsc = field === 'score' ? false : true; 
+  }
+
+  round.entries.sort((a, b) => {
+    let valA = a[field];
+    let valB = b[field];
+
+    if (field === 'score') {
+      // Push empty scores to the bottom by treating them as -Infinity
+      valA = (valA === '' || isNaN(valA)) ? -Infinity : parseFloat(valA);
+      valB = (valB === '' || isNaN(valB)) ? -Infinity : parseFloat(valB);
+    } else {
+      valA = valA.trim().toLowerCase();
+      valB = valB.trim().toLowerCase();
+    }
+
+    if (valA < valB) return round.sortAsc ? -1 : 1;
+    if (valA > valB) return round.sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  save(data);
+  renderMainContent();
+}
+
 function addPlayerRow(ri) {
   data.rounds[ri].entries.unshift({ name: '', score: '' });
   save(data);
@@ -727,9 +803,7 @@ function startScrollers() {
 
   document.querySelectorAll('.lb-scroll-inner').forEach(inner => {
     const id = inner.id;
-    const wrap = inner.parentElement;
     const halfH = inner.scrollHeight / 2;
-    wrap.style.height = Math.min(halfH, 10 * 37) + 'px';
 
     if (halfH <= 0) return;
 
